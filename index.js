@@ -2,46 +2,36 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
-import Item from "../models/Item.js";
+import Item from "./models/Item.js";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
 const app = express();
-
-/* ✅ CORS */
 app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://your-frontend.vercel.app", // add later
+      "https://shophub-frontend-three.vercel.app",
     ],
+
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
-
 app.use(express.json());
+app.use(cookieParser());
 
-/* ✅ MongoDB Connection (Singleton Pattern) */
-let isConnected = false;
-
-async function connectDB() {
-  if (isConnected) return;
-
-  await mongoose.connect(process.env.MONGO_URI);
-  isConnected = true;
-  console.log("MongoDB Connected");
-}
-
-app.use(async (req, res, next) => {
-  await connectDB();
-  next();
-});
-
-/* 🔹 Routes */
 app.get("/", (req, res) => {
   res.send("API is running");
 });
 
+mongoose
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("MongoDB Connected"))
+  .catch((err) => console.error(err));
+
+// 🔹 GET all items
 app.get("/items", async (req, res) => {
   try {
     const items = await Item.find();
@@ -51,6 +41,7 @@ app.get("/items", async (req, res) => {
   }
 });
 
+// 🔹 GET single item
 app.get("/items/:id", async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
     return res.status(400).json({ message: "Invalid ID" });
@@ -64,8 +55,13 @@ app.get("/items/:id", async (req, res) => {
   res.json(item);
 });
 
+// 🔹 POST add item
+// 🔹 POST add item (MOCK AUTH VIA HEADER)
 app.post("/items", async (req, res) => {
-  if (!req.headers.cookie?.includes("auth_token")) {
+  const authHeader = req.headers.authorization;
+
+  // mock token check
+  if (!authHeader || authHeader !== "Bearer mock-token") {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
@@ -77,5 +73,7 @@ app.post("/items", async (req, res) => {
   }
 });
 
-/* ✅ EXPORT (NO app.listen) */
-export default app;
+const PORT = 5000;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
